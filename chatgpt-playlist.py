@@ -94,7 +94,8 @@ def main():
         sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=spotify_client_id,
                                                        client_secret=spotify_client_secret,
                                                        redirect_uri='http://localhost:3000',
-                                                       scope='playlist-modify-private'))
+                                                       scope='playlist-modify-private',
+                                                       open_browser=False),)
 
         track_uris = []
         playlist_name, songs = get_songs(api_key, DESCRIPTION)
