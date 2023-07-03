@@ -16,7 +16,7 @@ import random
 
 # Check if client_id and client_secret were provided as command-line arguments
 if len(sys.argv) < 3:
-    print("Usage: python script.py <client_id> <client_secret>")
+    print("Usage: python spotify-shuffle.py <client_id> <client_secret>")
     sys.exit(1)
 
 # Retrieve the client_id and client_secret from command-line arguments
