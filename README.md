@@ -1,2 +1,3 @@
 # spotify-shuffle
-A simple program to shuffle Spotify liked songs without bias. It creates a new playlist in your Spotify account so you can pick up where you left off. For usage hints, see https://developer.spotify.com/documentation/web-api/tutorials/getting-started or ask joelodom@gmail.com for some help.
+
+This is a PROOF OF CONCEPT web app that allows you to use natural language to describe a playlist. The app links ChatGPT and Spotify. It's hacked together as a POC. I host my instance on AWS so I can create fun playlists on the go.
