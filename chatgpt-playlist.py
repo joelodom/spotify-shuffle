@@ -10,15 +10,19 @@ import openai
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 import sys
+import requests
+
+
+DESCRIPTION = "Classical music that sounds like Mozart but is written by other composers."
 
 
 
-def get_songs(api_key):
+def get_songs(api_key, description):
     openai.api_key = api_key
 
     response = openai.Completion.create(
         engine='text-davinci-003',
-        prompt='Generate a Python list of ten random songs where each element of the list is a tuple consisting of the song name and the artist. Don\'t name the list or assign it to a variable, just return the literal list. Make sure to escape any apostrophes.',
+        prompt=f'Generate a Python list of songs that are f{description}. Each element of the list is a tuple consisting of the song name and the artist. Don\'t name the list or assign it to a variable, just return the literal list. Make sure to escape any apostrophes.',
         max_tokens=1000,
         temperature=0.7,
         n=1,
@@ -89,7 +93,7 @@ def main():
                                                        scope='playlist-modify-private'))
 
         track_uris = []
-        playlist_name, songs = get_songs(api_key)
+        playlist_name, songs = get_songs(api_key, DESCRIPTION)
         for song in songs:
             print(f"Song: {song[0]}\nArtist: {song[1]}\n")
             uri = get_track_uri(sp, song[0], song[1])
