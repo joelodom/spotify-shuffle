@@ -13,8 +13,10 @@ import sys
 import requests
 
 
-DESCRIPTION = "1980s pop hits that sound like 2010s indie songs."
+#DESCRIPTION = "1980s pop hits that sound like 2010s indie songs."
 
+with open('description.txt', 'r') as f: # Such hacked code!
+    DESCRIPTION = f.read().strip()
 
 
 def get_songs(api_key, description):
@@ -78,6 +80,8 @@ def create_spotify_playlist(sp, playlist_name, track_uris):
 
 
 def main():
+    print('Creating playlist base from description.txt.')
+    
     if len(sys.argv) < 4:
         print("Usage: python chatgpt-playlist.py YOUR_API_KEY YOUR_CLIENT_ID YOUR_CLIENT_SECRET")
         exit(-1)

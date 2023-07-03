@@ -161,3 +161,5 @@ cython_debug/
 
 # My script to run it with my secrets
 shuffle.sh
+description.txt
+secret
