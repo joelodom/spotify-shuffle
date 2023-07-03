@@ -1,3 +1,13 @@
+#
+# A script to get your liked songs and create a new playlist with unbiased
+# shuffle.
+#
+# By Joel Odom (joelodom@gmail.com) who can help you with the usage.
+#
+# Thanks ChatGPT for help in buddy coding this.
+#
+
+
 import sys
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
@@ -24,11 +34,23 @@ try:
                                                    redirect_uri=redirect_uri,
                                                    scope=scope))
     
-    # Get user's liked songs
-    liked_songs = sp.current_user_saved_tracks(limit=20)  # Adjust the limit as needed
+    # Retrieve all liked songs in batches of fifty (which I think is the limit)
+    limit = 50  # Number of songs to retrieve per batch
+    offset = 0  # Initial offset
+    liked_songs = []
 
+    while True:
+        tracks = sp.current_user_saved_tracks(limit=limit, offset=offset)
+
+        # Break the loop if no more tracks are returned
+        if len(tracks['items']) == 0:
+            break
+
+        liked_songs.extend(tracks['items'])
+        offset += limit
+    
     # Extract the URIs of the liked songs
-    song_uris = [track['track']['uri'] for track in liked_songs['items']]
+    song_uris = [track['track']['uri'] for track in liked_songs]
 
     # Shuffle the song URIs
     random.shuffle(song_uris)
@@ -41,10 +63,15 @@ try:
     playlist = sp.user_playlist_create(
         user_id, playlist_name, public=False, description=playlist_description)
 
-    # Add the shuffled songs to the playlist
-    sp.playlist_add_items(playlist['id'], song_uris)
+    # Add the shuffled songs to the playlist in batches
+    batch_size = 100  # Number of songs to add per batch (I think this is the limit)
+    total_songs = len(song_uris)
 
-    print(f'Playlist "{playlist_name}" created successfully with {len(song_uris)} songs!')
+    for i in range(0, total_songs, batch_size):
+        batch_songs = song_uris[i:i + batch_size]
+        sp.playlist_add_items(playlist['id'], batch_songs)
+
+    print(f'Playlist "{playlist_name}" created with {total_songs} songs!')
 
 except spotipy.SpotifyException as e:
     print("An error occurred with the Spotify API:")
