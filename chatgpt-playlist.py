@@ -13,7 +13,7 @@ import sys
 import requests
 
 
-DESCRIPTION = "Classical music that sounds like Mozart but is written by other composers."
+DESCRIPTION = "1980s pop hits that sound like 2010s indie songs."
 
 
 
@@ -22,7 +22,7 @@ def get_songs(api_key, description):
 
     response = openai.Completion.create(
         engine='text-davinci-003',
-        prompt=f'Generate a Python list of songs that are f{description}. Each element of the list is a tuple consisting of the song name and the artist. Don\'t name the list or assign it to a variable, just return the literal list. Make sure to escape any apostrophes.',
+        prompt=f'Generate a Python list of fifteen songs that are f{description}. Each element of the list is a tuple consisting of the song name and the artist. Don\'t name the list or assign it to a variable, just return the literal list. Use double quotes instead of single quotes for the strings.',
         max_tokens=1000,
         temperature=0.7,
         n=1,
