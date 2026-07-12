@@ -223,4 +223,4 @@ pub fn timestamp() -> String {
     chrono::Local::now().format("%Y-%m-%d %H:%M").to_string()
 }
 
-pub const APP_SIGNATURE: &str = "Created with Playlist Studio";
+pub const APP_SIGNATURE: &str = "Created with Spotify Shuffle";

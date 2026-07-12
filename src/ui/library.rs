@@ -66,8 +66,8 @@ impl StudioApp {
                 .column(Column::auto().at_least(50.0)) // tracks
                 .column(Column::auto().at_least(70.0)) // tier
                 .column(Column::auto().at_least(210.0)) // actions
-                .max_scroll_height(340.0)
-                .header(26.0, |mut header| {
+                .max_scroll_height(360.0)
+                .header(30.0, |mut header| {
                     header.col(|ui| {
                         ui.strong(format!("Playlist ({})", self.playlists.len()));
                     });
@@ -85,7 +85,7 @@ impl StudioApp {
                     });
                 })
                 .body(|body| {
-                    body.rows(32.0, self.playlists.len(), |mut row| {
+                    body.rows(36.0, self.playlists.len(), |mut row| {
                         let p = &self.playlists[row.index()];
                         let source = TrackSource::Playlist {
                             id: p.id.clone(),
@@ -204,7 +204,7 @@ impl StudioApp {
                         .column(Column::auto().at_least(46.0)) // duration
                         .column(Column::auto().at_least(74.0)) // released
                         .column(Column::auto().at_least(74.0)) // added
-                        .header(26.0, |mut header| {
+                        .header(30.0, |mut header| {
                             for title in
                                 ["#", "Title", "Artists", "Album", "Len", "Released", "Added"]
                             {
@@ -214,7 +214,7 @@ impl StudioApp {
                             }
                         })
                         .body(|body| {
-                            body.rows(26.0, rows.len(), |mut row| {
+                            body.rows(30.0, rows.len(), |mut row| {
                                 let i = row.index();
                                 let t = &rows[i];
                                 row.col(|ui| {

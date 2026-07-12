@@ -251,7 +251,7 @@ async fn wait_for_callback(
                 let _ = respond(
                     &mut stream,
                     200,
-                    "Connected to Spotify — you can close this tab and return to Playlist Studio.",
+                    "Connected to Spotify — you can close this tab and return to Spotify Shuffle.",
                 )
                 .await;
                 return Ok(code);
@@ -271,9 +271,9 @@ async fn respond(
 ) -> std::io::Result<()> {
     let reason = if status == 200 { "OK" } else { "Bad Request" };
     let body = format!(
-        "<!doctype html><meta charset=\"utf-8\"><title>Playlist Studio</title>\
+        "<!doctype html><meta charset=\"utf-8\"><title>Spotify Shuffle</title>\
          <body style=\"font-family: system-ui; margin: 4rem auto; max-width: 32rem\">\
-         <h2>Playlist Studio</h2><p>{message}</p></body>"
+         <h2>Spotify Shuffle</h2><p>{message}</p></body>"
     );
     let response = format!(
         "HTTP/1.1 {status} {reason}\r\nContent-Type: text/html; charset=utf-8\r\n\

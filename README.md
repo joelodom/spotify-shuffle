@@ -1,4 +1,4 @@
-# Playlist Studio
+# Spotify Shuffle
 
 A native desktop app (macOS / Windows / Linux) that gives you full, safe control over your
 Spotify library, with AI-powered playlist tools driven by **your existing Claude
@@ -40,7 +40,7 @@ natural-language descriptions into playlists via ChatGPT, plus a standalone Pyth
 that re-shuffled Liked Songs without bias. That code is preserved untouched in
 [`archive/`](archive/).
 
-Playlist Studio is its full rebuild: a single native application that keeps both original
+Spotify Shuffle is its full rebuild: a single native application that keeps both original
 ideas (AI playlist creation, unbiased shuffle) and grows them into a complete playlist
 workbench — with a strict safety model, because a tool with write access to a music
 library you've curated for years should be structurally incapable of wrecking it.
@@ -378,11 +378,11 @@ generation* round-trip (uses a trivial amount of quota).
 
 ### File locations
 
-| What | Where (macOS; Linux uses `~/.config/playlist-studio/`) |
+| What | Where (macOS; Linux uses `~/.config/spotify-shuffle/`) |
 |---|---|
-| Config | `~/Library/Application Support/playlist-studio/config.toml` |
-| Spotify tokens | `~/Library/Application Support/playlist-studio/tokens.json` (0600) |
-| Claude scratch dir | `~/Library/Application Support/playlist-studio/claude-workdir/` |
+| Config | `~/Library/Application Support/spotify-shuffle/config.toml` |
+| Spotify tokens | `~/Library/Application Support/spotify-shuffle/tokens.json` (0600) |
+| Claude scratch dir | `~/Library/Application Support/spotify-shuffle/claude-workdir/` |
 
 ## Configuration reference
 
@@ -433,9 +433,12 @@ anthropic_api_key_env = "ANTHROPIC_API_KEY"
 
 Every non-obvious choice made while building, with rationale:
 
-1. **Renamed the app "Playlist Studio"** (crate `playlist-studio`): Spotify's developer
-   policy frowns on third-party apps leading with "Spotify" in their name; the repo
-   directory name is unchanged.
+1. **The app is named "Spotify Shuffle"** (crate `spotify-shuffle`), matching the
+   repository, at the owner's request. (Note for anyone forking this publicly:
+   Spotify's branding guidelines discourage third-party apps from leading with
+   "Spotify" in their name — irrelevant for a private development-mode app, but
+   rename before distributing.) Earlier builds used the name "Playlist Studio";
+   the app migrates that data directory automatically on first launch.
 2. **`LICENSE` (MIT, 2023 Joel Odom) stays at the repo root** and covers the rewrite;
    only code moved into `archive/`. The old `.gitignore` moved with it; a fresh Rust
    `.gitignore` was written.

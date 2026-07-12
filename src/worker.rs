@@ -41,7 +41,7 @@ pub fn spawn(
     let (ev_tx, ev_rx) = mpsc::channel();
     let events = EventSender { tx: ev_tx, ctx };
     std::thread::Builder::new()
-        .name("playlist-studio-worker".into())
+        .name("spotify-shuffle-worker".into())
         .spawn(move || {
             let rt = tokio::runtime::Builder::new_multi_thread()
                 .worker_threads(2)

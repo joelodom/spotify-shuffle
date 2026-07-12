@@ -1,5 +1,8 @@
 //! Insights view: recently played + top artists/tracks (the listening data
 //! the 2026 API still exposes).
+//!
+//! Fixed layout — the page itself never scrolls; each list scrolls
+//! internally.
 
 use egui_extras::{Column, TableBuilder};
 
@@ -34,92 +37,100 @@ impl StudioApp {
         };
         let data = data.clone();
 
-        egui::ScrollArea::vertical()
-            .auto_shrink([false, false])
-            .show(ui, |ui| {
-                egui::CollapsingHeader::new(format!(
-                    "Recently played ({} plays)",
-                    data.recent.len()
-                ))
-                .default_open(true)
-                .show(ui, |ui| {
-                    if !data.recent_artist_counts.is_empty() {
-                        let line = data
-                            .recent_artist_counts
-                            .iter()
-                            .map(|(name, n)| format!("{name} ×{n}"))
-                            .collect::<Vec<_>>()
-                            .join("   ");
-                        ui.label(format!("Top artists in this window: {line}"));
-                        ui.add_space(4.0);
-                    }
-                    ui.push_id("recent-table", |ui| {
-                        TableBuilder::new(ui)
-                            .striped(true)
-                            .column(Column::auto().at_least(130.0))
-                            .column(Column::remainder().at_least(180.0))
-                            .column(Column::remainder().at_least(140.0))
-                            .max_scroll_height(320.0)
-                            .header(26.0, |mut header| {
-                                for t in ["When", "Track", "Artists"] {
-                                    header.col(|ui| {
-                                        ui.strong(t);
-                                    });
-                                }
-                            })
-                            .body(|body| {
-                                body.rows(26.0, data.recent.len(), |mut row| {
-                                    let r = &data.recent[row.index()];
-                                    row.col(|ui| {
-                                        ui.label(&r.when_local);
-                                    });
-                                    row.col(|ui| {
-                                        ui.label(&r.title);
-                                    });
-                                    row.col(|ui| {
-                                        ui.label(&r.artists);
-                                    });
+        ui.add_space(4.0);
+        ui.group(|ui| {
+            ui.strong(format!("Recently played ({} plays)", data.recent.len()));
+            ui.columns(2, |cols| {
+                // Left: the play-by-play table (scrolls internally).
+                cols[0].push_id("recent-table", |ui| {
+                    TableBuilder::new(ui)
+                        .striped(true)
+                        .column(Column::auto().at_least(150.0))
+                        .column(Column::remainder().at_least(160.0))
+                        .column(Column::remainder().at_least(120.0))
+                        .max_scroll_height(300.0)
+                        .header(28.0, |mut header| {
+                            for t in ["When", "Track", "Artists"] {
+                                header.col(|ui| {
+                                    ui.strong(t);
+                                });
+                            }
+                        })
+                        .body(|body| {
+                            body.rows(28.0, data.recent.len(), |mut row| {
+                                let r = &data.recent[row.index()];
+                                row.col(|ui| {
+                                    ui.label(&r.when_local);
+                                });
+                                row.col(|ui| {
+                                    ui.label(&r.title);
+                                });
+                                row.col(|ui| {
+                                    ui.label(&r.artists);
                                 });
                             });
-                    });
+                        });
                 });
-
-                egui::CollapsingHeader::new("Listening clock (plays by hour, recent window)")
-                    .default_open(true)
-                    .show(ui, |ui| {
-                        let max = data.hour_histogram.iter().copied().max().unwrap_or(0);
-                        if max == 0 {
-                            ui.label(egui::RichText::new("no timestamps available").weak());
-                        } else {
+                // Right: window stats + listening clock.
+                let col = &mut cols[1];
+                if !data.recent_artist_counts.is_empty() {
+                    col.strong("Top artists in this window");
+                    let line = data
+                        .recent_artist_counts
+                        .iter()
+                        .map(|(name, n)| format!("{name} ×{n}"))
+                        .collect::<Vec<_>>()
+                        .join("   ");
+                    col.label(line);
+                    col.add_space(6.0);
+                }
+                col.strong("Listening clock (plays by hour)");
+                let max = data.hour_histogram.iter().copied().max().unwrap_or(0);
+                if max == 0 {
+                    col.label(egui::RichText::new("no timestamps available").weak());
+                } else {
+                    egui::ScrollArea::vertical()
+                        .id_salt("clock-scroll")
+                        .max_height(200.0)
+                        .show(col, |ui| {
                             for (hour, count) in data.hour_histogram.iter().enumerate() {
                                 if *count == 0 {
                                     continue;
                                 }
-                                let bar_len = ((*count as f32 / max as f32) * 30.0).ceil() as usize;
+                                let bar_len = ((*count as f32 / max as f32) * 24.0).ceil() as usize;
                                 ui.monospace(format!(
                                     "{hour:02}:00  {}  {count}",
                                     "█".repeat(bar_len)
                                 ));
                             }
-                        }
-                    });
-
-                for top in &data.tops {
-                    egui::CollapsingHeader::new(format!("Top items — {}", top.range_label))
-                        .default_open(false)
-                        .show(ui, |ui| {
-                            ui.columns(2, |cols| {
-                                cols[0].strong("Artists");
-                                for (i, a) in top.artists.iter().enumerate() {
-                                    cols[0].label(format!("{}. {a}", i + 1));
-                                }
-                                cols[1].strong("Tracks");
-                                for (i, t) in top.tracks.iter().enumerate() {
-                                    cols[1].label(format!("{}. {t}", i + 1));
-                                }
-                            });
                         });
                 }
             });
+        });
+
+        ui.add_space(6.0);
+        ui.strong("Top items");
+        ui.columns(3, |cols| {
+            for (i, top) in data.tops.iter().enumerate() {
+                let col = &mut cols[i];
+                col.group(|ui| {
+                    ui.strong(top.range_label);
+                    egui::ScrollArea::vertical()
+                        .id_salt(("top-scroll", i))
+                        .max_height(240.0)
+                        .show(ui, |ui| {
+                            ui.label(egui::RichText::new("Artists").weak());
+                            for (n, a) in top.artists.iter().enumerate() {
+                                ui.label(format!("{}. {a}", n + 1));
+                            }
+                            ui.separator();
+                            ui.label(egui::RichText::new("Tracks").weak());
+                            for (n, t) in top.tracks.iter().enumerate() {
+                                ui.label(format!("{}. {t}", n + 1));
+                            }
+                        });
+                });
+            }
+        });
     }
 }

@@ -1,8 +1,8 @@
 [package]
-name = "playlist-studio"
+name = "spotify-shuffle"
 version = "0.1.0"
 edition = "2024"
-description = "AI-powered Spotify playlist studio with a strict two-tier playlist-safety model"
+description = "AI-powered Spotify playlist manager with a strict two-tier playlist-safety model"
 license = "MIT"
 
 [dependencies]

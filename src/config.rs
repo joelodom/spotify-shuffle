@@ -1,6 +1,6 @@
 //! App configuration, persisted as TOML in the platform config directory
-//! (e.g. `~/Library/Application Support/playlist-studio/` on macOS,
-//! `~/.config/playlist-studio/` on Linux).
+//! (e.g. `~/Library/Application Support/spotify-shuffle/` on macOS,
+//! `~/.config/spotify-shuffle/` on Linux).
 //!
 //! Secrets policy: the Spotify *client id* is not a secret (PKCE apps have no
 //! client secret at all). OAuth tokens are stored separately in
@@ -12,7 +12,27 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-pub const APP_DIR_NAME: &str = "playlist-studio";
+pub const APP_DIR_NAME: &str = "spotify-shuffle";
+
+/// Data directory used before the app was renamed to Spotify Shuffle.
+const LEGACY_DIR_NAME: &str = "playlist-studio";
+
+/// One-time migration: earlier builds stored config/tokens under the old
+/// name; move that directory to the new location if the new one doesn't
+/// exist yet.
+fn migrate_legacy_dir() {
+    let Some(base) = dirs::config_dir() else {
+        return;
+    };
+    let old = base.join(LEGACY_DIR_NAME);
+    let new = base.join(APP_DIR_NAME);
+    if old.is_dir() && !new.exists() {
+        match std::fs::rename(&old, &new) {
+            Ok(()) => tracing::info!("migrated data dir {old:?} -> {new:?}"),
+            Err(e) => tracing::warn!("could not migrate legacy data dir: {e}"),
+        }
+    }
+}
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 #[serde(default)]
@@ -121,6 +141,7 @@ pub fn claude_workdir() -> PathBuf {
 
 impl AppConfig {
     pub fn load() -> Self {
+        migrate_legacy_dir();
         let path = config_path();
         match std::fs::read_to_string(&path) {
             Ok(text) => toml::from_str(&text).unwrap_or_else(|e| {

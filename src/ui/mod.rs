@@ -152,25 +152,29 @@ impl StudioApp {
             use egui::FontFamily::{Monospace, Proportional};
             use egui::{FontId, TextStyle};
             style.text_styles = [
-                (TextStyle::Small, FontId::new(12.0, Proportional)),
-                (TextStyle::Body, FontId::new(16.0, Proportional)),
-                (TextStyle::Button, FontId::new(16.0, Proportional)),
-                (TextStyle::Heading, FontId::new(24.0, Proportional)),
-                (TextStyle::Monospace, FontId::new(14.5, Monospace)),
+                (TextStyle::Small, FontId::new(14.0, Proportional)),
+                (TextStyle::Body, FontId::new(18.0, Proportional)),
+                (TextStyle::Button, FontId::new(18.0, Proportional)),
+                (TextStyle::Heading, FontId::new(26.0, Proportional)),
+                (TextStyle::Monospace, FontId::new(16.0, Monospace)),
             ]
             .into();
             style.spacing.item_spacing = egui::vec2(8.0, 8.0);
-            style.spacing.button_padding = egui::vec2(12.0, 6.0);
-            style.spacing.interact_size.y = 30.0;
+            style.spacing.button_padding = egui::vec2(12.0, 7.0);
+            style.spacing.interact_size.y = 32.0;
         });
         ctx.style_mut_of(egui::Theme::Dark, |style| {
             let v = &mut style.visuals;
-            // Soft off-white text: clear contrast, no pure-white glare.
-            v.widgets.noninteractive.fg_stroke.color = egui::Color32::from_gray(205);
-            v.widgets.inactive.fg_stroke.color = egui::Color32::from_gray(220);
-            v.widgets.hovered.fg_stroke.color = egui::Color32::from_gray(240);
-            v.widgets.active.fg_stroke.color = egui::Color32::from_gray(248);
-            v.widgets.open.fg_stroke.color = egui::Color32::from_gray(235);
+            // Warm ivory main text on near-black: strong contrast without
+            // glare, with a gentle yellowish cast.
+            v.widgets.noninteractive.fg_stroke.color = egui::Color32::from_rgb(236, 227, 195);
+            v.widgets.inactive.fg_stroke.color = egui::Color32::from_rgb(241, 233, 204);
+            v.widgets.hovered.fg_stroke.color = egui::Color32::from_rgb(250, 245, 222);
+            v.widgets.active.fg_stroke.color = egui::Color32::from_rgb(255, 251, 232);
+            v.widgets.open.fg_stroke.color = egui::Color32::from_rgb(245, 238, 211);
+            // Smaller explanatory (.weak) text: a lighter neutral grey so it
+            // stays readable but clearly secondary to the ivory body text.
+            v.weak_text_color = Some(egui::Color32::from_gray(200));
             // Muted Spotify-green selection highlight.
             v.selection.bg_fill = egui::Color32::from_rgb(22, 84, 48);
             v.selection.stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(130, 225, 165));
@@ -273,7 +277,7 @@ impl StudioApp {
     fn top_panel(&mut self, ui: &mut egui::Ui) {
         egui::Panel::top("top").show(ui, |ui| {
             ui.horizontal(|ui| {
-                ui.heading("Playlist Studio");
+                ui.heading("Spotify Shuffle");
                 ui.label(egui::RichText::new("for Spotify").weak());
                 ui.separator();
                 match &self.auth {
@@ -322,7 +326,7 @@ impl StudioApp {
     }
 
     fn side_panel(&mut self, ui: &mut egui::Ui) {
-        egui::Panel::left("nav").default_size(225.0).show(ui, |ui| {
+        egui::Panel::left("nav").default_size(250.0).show(ui, |ui| {
             ui.add_space(6.0);
             for (view, label) in [
                 (View::Setup, "Setup Guide"),
@@ -371,7 +375,7 @@ impl StudioApp {
         };
         let mut action: Option<Command> = None;
         let modal = egui::Modal::new(egui::Id::new("guarded-delete")).show(ctx, |ui| {
-            ui.set_width(440.0);
+            ui.set_width(540.0);
             ui.heading(
                 egui::RichText::new("⚠ Delete PROTECTED playlist")
                     .color(egui::Color32::from_rgb(230, 70, 70)),
@@ -382,11 +386,11 @@ impl StudioApp {
             ui.label(
                 egui::RichText::new(format!("“{}”", dialog.name))
                     .strong()
-                    .size(20.0),
+                    .size(22.0),
             );
             ui.add_space(6.0);
             ui.label(
-                "This playlist was NOT created during this session. Playlist Studio never \
+                "This playlist was NOT created during this session. Spotify Shuffle never \
                  edits protected playlists, and deleting one is the only destructive action \
                  it allows — after this confirmation.",
             );

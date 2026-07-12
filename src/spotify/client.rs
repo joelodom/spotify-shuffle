@@ -81,7 +81,11 @@ pub struct SpotifyClient {
 impl SpotifyClient {
     pub(super) fn new(tokens: TokenManager) -> Self {
         let http = reqwest::Client::builder()
-            .user_agent(concat!("playlist-studio/", env!("CARGO_PKG_VERSION")))
+            .user_agent(concat!(
+                env!("CARGO_PKG_NAME"),
+                "/",
+                env!("CARGO_PKG_VERSION")
+            ))
             .timeout(Duration::from_secs(30))
             .build()
             .expect("reqwest client");

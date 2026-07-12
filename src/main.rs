@@ -1,4 +1,4 @@
-//! Playlist Studio — an AI-powered Spotify playlist manager with a strict
+//! Spotify Shuffle — an AI-powered Spotify playlist manager with a strict
 //! two-tier playlist-safety model. See README.md for the full story.
 
 // Hide the console window on Windows in release builds.
@@ -21,20 +21,20 @@ fn main() -> eframe::Result {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "playlist_studio=info".into()),
+                .unwrap_or_else(|_| "spotify_shuffle=info".into()),
         )
         .init();
 
     let cfg = AppConfig::load();
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_title("Playlist Studio")
-            .with_inner_size([1300.0, 860.0])
-            .with_min_inner_size([1000.0, 700.0]),
+            .with_title("Spotify Shuffle")
+            .with_inner_size([1420.0, 920.0])
+            .with_min_inner_size([1120.0, 780.0]),
         ..Default::default()
     };
     eframe::run_native(
-        "Playlist Studio",
+        "Spotify Shuffle",
         options,
         Box::new(|cc| Ok(Box::new(ui::StudioApp::new(cc, cfg)))),
     )
