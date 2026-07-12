@@ -100,9 +100,7 @@ pub struct StudioApp {
 impl StudioApp {
     pub fn new(cc: &eframe::CreationContext<'_>, cfg: AppConfig) -> Self {
         let (cmd, events) = worker::spawn(cfg.clone(), cc.egui_ctx.clone());
-        cc.egui_ctx.all_styles_mut(|style| {
-            style.spacing.item_spacing = egui::vec2(8.0, 6.0);
-        });
+        Self::apply_style(&cc.egui_ctx);
         // Land new users in the wizard; returning users go straight to the
         // library.
         let start_view = if cfg.spotify.client_id.trim().is_empty() {
@@ -143,6 +141,46 @@ impl StudioApp {
             cfg_draft: cfg,
             ai_test: None,
         }
+    }
+
+    /// Global look & feel: dark theme by default, larger type and hit
+    /// targets, and lifted text contrast — soft off-white on near-black,
+    /// readable without being glaring.
+    fn apply_style(ctx: &egui::Context) {
+        ctx.set_theme(egui::ThemePreference::Dark);
+        ctx.all_styles_mut(|style| {
+            use egui::FontFamily::{Monospace, Proportional};
+            use egui::{FontId, TextStyle};
+            style.text_styles = [
+                (TextStyle::Small, FontId::new(12.0, Proportional)),
+                (TextStyle::Body, FontId::new(16.0, Proportional)),
+                (TextStyle::Button, FontId::new(16.0, Proportional)),
+                (TextStyle::Heading, FontId::new(24.0, Proportional)),
+                (TextStyle::Monospace, FontId::new(14.5, Monospace)),
+            ]
+            .into();
+            style.spacing.item_spacing = egui::vec2(8.0, 8.0);
+            style.spacing.button_padding = egui::vec2(12.0, 6.0);
+            style.spacing.interact_size.y = 30.0;
+        });
+        ctx.style_mut_of(egui::Theme::Dark, |style| {
+            let v = &mut style.visuals;
+            // Soft off-white text: clear contrast, no pure-white glare.
+            v.widgets.noninteractive.fg_stroke.color = egui::Color32::from_gray(205);
+            v.widgets.inactive.fg_stroke.color = egui::Color32::from_gray(220);
+            v.widgets.hovered.fg_stroke.color = egui::Color32::from_gray(240);
+            v.widgets.active.fg_stroke.color = egui::Color32::from_gray(248);
+            v.widgets.open.fg_stroke.color = egui::Color32::from_gray(235);
+            // Muted Spotify-green selection highlight.
+            v.selection.bg_fill = egui::Color32::from_rgb(22, 84, 48);
+            v.selection.stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(130, 225, 165));
+            v.hyperlink_color = egui::Color32::from_rgb(125, 190, 255);
+            // Slightly deepened backgrounds so text and stripes stand out.
+            v.panel_fill = egui::Color32::from_gray(24);
+            v.window_fill = egui::Color32::from_gray(30);
+            v.extreme_bg_color = egui::Color32::from_gray(14);
+            v.faint_bg_color = egui::Color32::from_gray(33);
+        });
     }
 
     pub(crate) fn send(&self, cmd: Command) {
@@ -252,7 +290,7 @@ impl StudioApp {
                         );
                     }
                     _ => {
-                        ui.colored_label(egui::Color32::GRAY, "○ not connected");
+                        ui.colored_label(egui::Color32::from_gray(180), "○ not connected");
                         if ui.small_button("Connect…").clicked() {
                             self.send(Command::Connect);
                         }
@@ -284,7 +322,7 @@ impl StudioApp {
     }
 
     fn side_panel(&mut self, ui: &mut egui::Ui) {
-        egui::Panel::left("nav").default_size(190.0).show(ui, |ui| {
+        egui::Panel::left("nav").default_size(225.0).show(ui, |ui| {
             ui.add_space(6.0);
             for (view, label) in [
                 (View::Setup, "Setup Guide"),
@@ -344,7 +382,7 @@ impl StudioApp {
             ui.label(
                 egui::RichText::new(format!("“{}”", dialog.name))
                     .strong()
-                    .size(18.0),
+                    .size(20.0),
             );
             ui.add_space(6.0);
             ui.label(

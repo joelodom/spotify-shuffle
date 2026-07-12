@@ -27,7 +27,7 @@ impl StudioApp {
             .show(ui, |ui| {
                 for (level, time, message) in &self.log {
                     let (color, tag) = match level {
-                        LogLevel::Info => (egui::Color32::GRAY, "info"),
+                        LogLevel::Info => (egui::Color32::from_gray(165), "info"),
                         LogLevel::Success => (egui::Color32::from_rgb(30, 180, 90), " ok "),
                         LogLevel::Warn => (egui::Color32::from_rgb(220, 160, 40), "warn"),
                         LogLevel::Error => (egui::Color32::from_rgb(230, 80, 80), "FAIL"),

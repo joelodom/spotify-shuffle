@@ -12,11 +12,11 @@ fn step_header(ui: &mut egui::Ui, done: bool, title: &str) {
     let (mark, color) = if done {
         ("✔", egui::Color32::from_rgb(30, 180, 90))
     } else {
-        ("○", egui::Color32::GRAY)
+        ("○", egui::Color32::from_gray(180))
     };
     ui.horizontal(|ui| {
-        ui.label(egui::RichText::new(mark).color(color).size(18.0));
-        ui.label(egui::RichText::new(title).strong().size(16.0));
+        ui.label(egui::RichText::new(mark).color(color).size(20.0));
+        ui.label(egui::RichText::new(title).strong().size(18.0));
     });
 }
 

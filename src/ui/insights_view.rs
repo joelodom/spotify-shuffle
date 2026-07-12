@@ -59,8 +59,8 @@ impl StudioApp {
                             .column(Column::auto().at_least(130.0))
                             .column(Column::remainder().at_least(180.0))
                             .column(Column::remainder().at_least(140.0))
-                            .max_scroll_height(260.0)
-                            .header(20.0, |mut header| {
+                            .max_scroll_height(320.0)
+                            .header(26.0, |mut header| {
                                 for t in ["When", "Track", "Artists"] {
                                     header.col(|ui| {
                                         ui.strong(t);
@@ -68,7 +68,7 @@ impl StudioApp {
                                 }
                             })
                             .body(|body| {
-                                body.rows(20.0, data.recent.len(), |mut row| {
+                                body.rows(26.0, data.recent.len(), |mut row| {
                                     let r = &data.recent[row.index()];
                                     row.col(|ui| {
                                         ui.label(&r.when_local);

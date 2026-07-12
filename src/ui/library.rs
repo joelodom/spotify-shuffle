@@ -66,8 +66,8 @@ impl StudioApp {
                 .column(Column::auto().at_least(50.0)) // tracks
                 .column(Column::auto().at_least(70.0)) // tier
                 .column(Column::auto().at_least(210.0)) // actions
-                .max_scroll_height(300.0)
-                .header(20.0, |mut header| {
+                .max_scroll_height(340.0)
+                .header(26.0, |mut header| {
                     header.col(|ui| {
                         ui.strong(format!("Playlist ({})", self.playlists.len()));
                     });
@@ -85,7 +85,7 @@ impl StudioApp {
                     });
                 })
                 .body(|body| {
-                    body.rows(22.0, self.playlists.len(), |mut row| {
+                    body.rows(32.0, self.playlists.len(), |mut row| {
                         let p = &self.playlists[row.index()];
                         let source = TrackSource::Playlist {
                             id: p.id.clone(),
@@ -113,7 +113,7 @@ impl StudioApp {
                                 ui.colored_label(egui::Color32::from_rgb(30, 180, 90), "session");
                             }
                             Tier::Protected => {
-                                ui.colored_label(egui::Color32::GRAY, "protected");
+                                ui.colored_label(egui::Color32::from_gray(180), "protected");
                             }
                         });
                         row.col(|ui| {
@@ -204,7 +204,7 @@ impl StudioApp {
                         .column(Column::auto().at_least(46.0)) // duration
                         .column(Column::auto().at_least(74.0)) // released
                         .column(Column::auto().at_least(74.0)) // added
-                        .header(20.0, |mut header| {
+                        .header(26.0, |mut header| {
                             for title in
                                 ["#", "Title", "Artists", "Album", "Len", "Released", "Added"]
                             {
@@ -214,7 +214,7 @@ impl StudioApp {
                             }
                         })
                         .body(|body| {
-                            body.rows(20.0, rows.len(), |mut row| {
+                            body.rows(26.0, rows.len(), |mut row| {
                                 let i = row.index();
                                 let t = &rows[i];
                                 row.col(|ui| {
