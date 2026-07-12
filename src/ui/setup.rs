@@ -89,10 +89,11 @@ impl StudioApp {
             cols[1].group(|ui| {
                 step_header(ui, connected, "2 — Connect your account");
                 ui.label(
-                    "Opens Spotify in your browser to authorize the app (OAuth + PKCE). \
-                     Approve it and return here. Tokens are saved locally, so this \
-                     survives restarts — Spotify forces a fresh login roughly every 6 \
-                     months.",
+                    "Opens Spotify in your browser to authorize the app. This browser \
+                     approval is required ONCE by OAuth even when a client secret is \
+                     configured (a secret authenticates the app, not your account). \
+                     Approve it and return here — afterwards the app connects silently \
+                     on every launch, until Spotify's ~6-month re-login.",
                 );
                 ui.add_space(4.0);
                 let can = client_id_set && !self.is_busy();

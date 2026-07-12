@@ -515,6 +515,13 @@ Every non-obvious choice made while building, with rationale:
     explicit owner decision, acceptable because it only guards this personal
     development-mode Spotify app. Switching methods invalidates nothing proactively;
     if a refresh fails after a switch, the app clears tokens and asks to reconnect.
+30. **Startup connects automatically.** With a saved login, the app connects
+    silently on launch. With credentials configured but no saved login, it opens
+    the browser authorization by itself. Note what a client secret can and cannot
+    do: it authenticates the *app*, not your account — OAuth requires one browser
+    approval for user-data access regardless of flow (the secret-only "client
+    credentials" grant carries no user and cannot read playlists), so the one-time
+    consent cannot be skipped. Every launch after it is hands-free.
 
 ## Testing
 

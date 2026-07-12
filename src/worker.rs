@@ -69,11 +69,32 @@ async fn worker_loop(cfg: AppConfig, mut rx: UnboundedReceiver<Command>, events:
     if worker.svc.is_authenticated() {
         worker.events.log(
             LogLevel::Info,
-            "Found saved Spotify credentials; loading library…",
+            "Found saved Spotify login; connecting automatically…",
         );
         worker.busy("Loading playlists");
         worker.refresh_playlists().await;
         worker.done();
+        if !worker.svc.is_authenticated() {
+            // The saved refresh token was rejected (e.g. Spotify's 6-month
+            // authorization expiry) and has been cleared — go straight back
+            // through the browser approval rather than sitting disconnected.
+            worker.events.log(
+                LogLevel::Warn,
+                "Saved login has expired — starting browser re-authorization…",
+            );
+            worker.connect().await;
+        }
+    } else if !worker.cfg.spotify.client_id.trim().is_empty() {
+        // Credentials are configured but no login is saved yet: start the
+        // one-time browser authorization automatically. (OAuth requires one
+        // browser approval for user-data access even with a client secret;
+        // every launch after that connects silently.)
+        worker.events.log(
+            LogLevel::Info,
+            "Spotify credentials configured but no saved login — opening the one-time \
+             browser authorization…",
+        );
+        worker.connect().await;
     }
     while let Some(cmd) = rx.recv().await {
         worker.handle(cmd).await;
