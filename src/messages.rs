@@ -125,6 +125,8 @@ pub struct TrackRow {
 pub struct AuthInfo {
     pub connected: bool,
     pub user: Option<String>,
+    /// Which OAuth variant the applied config selects.
+    pub auth_method: String,
     pub provider_desc: String,
 }
 

@@ -100,7 +100,8 @@ impl StudioApp {
                     .add_enabled(can, egui::Button::new("🔗 Connect to Spotify…"))
                     .clicked()
                 {
-                    self.send(Command::Connect);
+                    // Applies anything typed in step 1 (and Settings) first.
+                    self.apply_and_connect();
                 }
                 if connected {
                     let user = self

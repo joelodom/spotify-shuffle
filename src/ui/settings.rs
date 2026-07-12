@@ -61,13 +61,21 @@ impl StudioApp {
                         );
                         ui.end_row();
                     });
+                if let Some(auth) = &self.auth {
+                    ui.label(
+                        egui::RichText::new(format!("Active auth method: {}", auth.auth_method))
+                            .small(),
+                    );
+                }
                 ui.horizontal(|ui| {
                     let busy = self.is_busy();
                     if ui
                         .add_enabled(!busy, egui::Button::new("Connect to Spotify…"))
                         .clicked()
                     {
-                        self.send(Command::Connect);
+                        // Applies the fields above first — no separate Apply
+                        // press needed before connecting.
+                        self.apply_and_connect();
                     }
                     if ui
                         .add_enabled(

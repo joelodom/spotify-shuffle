@@ -191,6 +191,16 @@ impl StudioApp {
         let _ = self.cmd.send(cmd);
     }
 
+    /// Connect to Spotify using whatever is currently typed into Settings /
+    /// the Setup Guide: applies the draft config first, then connects. The
+    /// worker processes commands in order, so the credentials (client id,
+    /// optional client secret, port) are in effect before the flow starts —
+    /// no separate "Apply" press needed.
+    pub(crate) fn apply_and_connect(&self) {
+        self.send(Command::ApplyConfig(Box::new(self.cfg_draft.clone())));
+        self.send(Command::Connect);
+    }
+
     pub(crate) fn is_busy(&self) -> bool {
         self.busy.is_some()
     }
@@ -296,7 +306,7 @@ impl StudioApp {
                     _ => {
                         ui.colored_label(egui::Color32::from_gray(180), "○ not connected");
                         if ui.small_button("Connect…").clicked() {
-                            self.send(Command::Connect);
+                            self.apply_and_connect();
                         }
                     }
                 }

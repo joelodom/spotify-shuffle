@@ -112,10 +112,19 @@ impl Worker {
         }
     }
 
+    fn auth_method(&self) -> String {
+        if self.cfg.spotify.client_secret_opt().is_some() {
+            "client secret (confidential-client flow)".into()
+        } else {
+            "PKCE (no client secret)".into()
+        }
+    }
+
     fn emit_auth(&self) {
         self.events.send(Event::Auth(AuthInfo {
             connected: self.svc.is_authenticated(),
             user: self.me_label.clone(),
+            auth_method: self.auth_method(),
             provider_desc: self.provider_desc(),
         }));
     }
@@ -671,7 +680,13 @@ impl Worker {
                 };
                 self.ai = ai;
                 self.ai_error = ai_error;
-                self.events.log(LogLevel::Success, "Settings applied");
+                self.events.log(
+                    LogLevel::Success,
+                    format!(
+                        "Settings applied — Spotify auth method: {}",
+                        self.auth_method()
+                    ),
+                );
                 self.emit_auth();
             }
         }
