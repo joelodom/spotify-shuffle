@@ -29,6 +29,15 @@ impl StudioApp {
                         );
                         ui.end_row();
 
+                        ui.label("Client secret:");
+                        ui.add(
+                            egui::TextEdit::singleline(&mut self.cfg_draft.spotify.client_secret)
+                                .password(true)
+                                .desired_width(300.0)
+                                .hint_text("optional — empty = PKCE flow (recommended)"),
+                        );
+                        ui.end_row();
+
                         ui.label("Redirect port:");
                         ui.add(egui::DragValue::new(
                             &mut self.cfg_draft.spotify.redirect_port,

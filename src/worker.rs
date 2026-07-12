@@ -82,7 +82,11 @@ async fn worker_loop(cfg: AppConfig, mut rx: UnboundedReceiver<Command>, events:
 
 impl Worker {
     fn new(cfg: AppConfig, events: EventSender) -> Self {
-        let svc = SpotifyService::new(&cfg.spotify.client_id, tokens_path());
+        let svc = SpotifyService::new(
+            &cfg.spotify.client_id,
+            cfg.spotify.client_secret_opt(),
+            tokens_path(),
+        );
         let (ai, ai_error) = match build_provider(&cfg.ai) {
             Ok(p) => (Some(p), None),
             Err(e) => (None, Some(e.to_string())),
@@ -642,19 +646,23 @@ impl Worker {
             }
             Command::ApplyConfig(new_cfg) => {
                 let new_cfg = *new_cfg;
-                let client_changed = new_cfg.spotify.client_id != self.cfg.spotify.client_id;
+                let client_changed = new_cfg.spotify.client_id != self.cfg.spotify.client_id
+                    || new_cfg.spotify.client_secret != self.cfg.spotify.client_secret;
                 if let Err(e) = new_cfg.save() {
                     self.events
                         .log(LogLevel::Error, format!("Could not save config: {e}"));
                 }
                 self.cfg = new_cfg;
                 if client_changed {
-                    self.svc
-                        .reconfigure(&self.cfg.spotify.client_id, tokens_path());
+                    self.svc.reconfigure(
+                        &self.cfg.spotify.client_id,
+                        self.cfg.spotify.client_secret_opt(),
+                        tokens_path(),
+                    );
                     self.me_label = None;
                     self.events.log(
                         LogLevel::Info,
-                        "Spotify client id changed — reconnect from Settings",
+                        "Spotify credentials changed — reconnect from Settings",
                     );
                 }
                 let (ai, ai_error) = match build_provider(&self.cfg.ai) {
@@ -681,10 +689,11 @@ impl Worker {
         self.busy("Connecting to Spotify");
         let events = self.events.clone();
         let client_id = self.cfg.spotify.client_id.clone();
+        let client_secret = self.cfg.spotify.client_secret_opt().map(str::to_string);
         let port = self.cfg.spotify.redirect_port;
         let result = self
             .svc
-            .connect_interactive(&client_id, port, move |line| {
+            .connect_interactive(&client_id, client_secret.as_deref(), port, move |line| {
                 events.log(LogLevel::Info, line);
             })
             .await;

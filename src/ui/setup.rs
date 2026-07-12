@@ -76,8 +76,9 @@ impl StudioApp {
                     egui::RichText::new(
                         "Spotify policy (Feb 2026): the app owner needs Premium; one \
                          development-mode app per account; up to 5 allowlisted users. \
-                         Personal use — as here — is the intended case. No client secret: \
-                         this app uses the PKCE flow.",
+                         Personal use — as here — is the intended case. No client secret \
+                         needed: the app uses PKCE by default (a secret is optional, in \
+                         Settings, for the classic flow).",
                     )
                     .weak()
                     .small(),

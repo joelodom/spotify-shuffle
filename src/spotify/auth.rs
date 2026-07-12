@@ -1,7 +1,10 @@
-//! Authorization Code with PKCE for a native desktop app.
+//! Authorization Code flow for a native desktop app — PKCE by default
+//! (public client, no secret), or the classic confidential-client variant
+//! when an OPTIONAL client secret is configured.
 //!
 //! Current Spotify rules this implements (verified July 2026, see README):
-//! * No client secret — PKCE only. The client id is not a secret.
+//! * PKCE needs no client secret; the client id is not a secret. With a
+//!   configured secret, token requests authenticate via HTTP Basic instead.
 //! * Redirect URIs must be HTTPS **except** the explicit loopback IP;
 //!   `http://127.0.0.1:<port>/callback` is allowed, the hostname
 //!   `localhost` is not. The URI registered in the developer dashboard must
@@ -116,40 +119,68 @@ fn expires_at_from(expires_in: i64) -> i64 {
     now_unix() + expires_in - 30
 }
 
-/// Run the full interactive PKCE flow: bind the loopback listener, open the
-/// browser, wait for the redirect, exchange the code. `notify` receives
+/// Build the user-facing authorize URL. `pkce_challenge` is present for the
+/// public-client (PKCE) flow and absent for the confidential-client flow.
+fn build_authorize_url(
+    client_id: &str,
+    redirect_uri: &str,
+    state: &str,
+    pkce_challenge: Option<&str>,
+) -> String {
+    let scope = SCOPES.join(" ");
+    let mut params: Vec<(&str, &str)> = vec![
+        ("client_id", client_id),
+        ("response_type", "code"),
+        ("redirect_uri", redirect_uri),
+        ("state", state),
+        ("scope", scope.as_str()),
+    ];
+    if let Some(challenge) = pkce_challenge {
+        params.push(("code_challenge_method", "S256"));
+        params.push(("code_challenge", challenge));
+    }
+    url::Url::parse_with_params(AUTHORIZE_URL, &params)
+        .expect("static authorize URL is valid")
+        .to_string()
+}
+
+/// Run the full interactive browser flow: bind the loopback listener, open
+/// the browser, wait for the redirect, exchange the code. `notify` receives
 /// human-readable status lines (including the authorize URL as a fallback if
 /// the browser fails to open).
-pub async fn run_pkce_flow(
+///
+/// The variant is chosen by `client_secret`:
+/// * `None` — Authorization Code + PKCE (public client; recommended);
+/// * `Some(secret)` — classic confidential-client Authorization Code flow:
+///   no PKCE, token requests authenticate with HTTP Basic
+///   (client_id:client_secret).
+pub async fn run_auth_flow(
     http: &reqwest::Client,
     client_id: &str,
+    client_secret: Option<&str>,
     port: u16,
     notify: impl Fn(String),
 ) -> Result<StoredTokens, AuthError> {
     let redirect_uri = format!("http://127.0.0.1:{port}/callback");
-    let verifier = random_urlsafe(64); // 86 chars, within RFC 7636's 43..=128
-    let challenge = code_challenge_s256(&verifier);
     let state = random_urlsafe(24);
+    // 86 chars, within RFC 7636's 43..=128 bound.
+    let verifier = client_secret.is_none().then(|| random_urlsafe(64));
+    let challenge = verifier.as_deref().map(code_challenge_s256);
 
     // Bind BEFORE opening the browser so the redirect cannot race us.
     let listener = TcpListener::bind(("127.0.0.1", port))
         .await
         .map_err(|_| AuthError::PortInUse(port))?;
 
-    let authorize_url = url::Url::parse_with_params(
-        AUTHORIZE_URL,
-        &[
-            ("client_id", client_id),
-            ("response_type", "code"),
-            ("redirect_uri", redirect_uri.as_str()),
-            ("state", state.as_str()),
-            ("scope", SCOPES.join(" ").as_str()),
-            ("code_challenge_method", "S256"),
-            ("code_challenge", challenge.as_str()),
-        ],
-    )
-    .expect("static authorize URL is valid")
-    .to_string();
+    notify(format!(
+        "Using the {} flow",
+        if client_secret.is_some() {
+            "confidential-client (client secret)"
+        } else {
+            "PKCE (no secret)"
+        }
+    ));
+    let authorize_url = build_authorize_url(client_id, &redirect_uri, &state, challenge.as_deref());
 
     notify("Opening Spotify authorization in your browser…".to_string());
     if open::that(&authorize_url).is_err() {
@@ -171,17 +202,23 @@ pub async fn run_pkce_flow(
 
     notify("Authorization received; exchanging code for tokens…".to_string());
 
-    let resp = http
-        .post(TOKEN_URL)
-        .form(&[
-            ("grant_type", "authorization_code"),
-            ("code", code.as_str()),
-            ("redirect_uri", redirect_uri.as_str()),
-            ("client_id", client_id),
-            ("code_verifier", verifier.as_str()),
-        ])
-        .send()
-        .await?;
+    let mut request = http.post(TOKEN_URL);
+    let mut form: Vec<(&str, &str)> = vec![
+        ("grant_type", "authorization_code"),
+        ("code", code.as_str()),
+        ("redirect_uri", redirect_uri.as_str()),
+    ];
+    match (client_secret, verifier.as_deref()) {
+        (Some(secret), _) => {
+            request = request.basic_auth(client_id, Some(secret));
+        }
+        (None, Some(verifier)) => {
+            form.push(("client_id", client_id));
+            form.push(("code_verifier", verifier));
+        }
+        (None, None) => unreachable!("a PKCE verifier always exists without a secret"),
+    }
+    let resp = request.form(&form).send().await?;
 
     let tokens = parse_token_response(client_id, None, resp).await?;
     Ok(tokens)
@@ -316,19 +353,23 @@ async fn parse_token_response(
 /// interior locking needed.
 pub struct TokenManager {
     client_id: String,
+    /// When present, refreshes use the confidential-client form (HTTP Basic)
+    /// instead of the PKCE public-client form.
+    client_secret: Option<String>,
     path: PathBuf,
     tokens: Option<StoredTokens>,
 }
 
 impl TokenManager {
     /// Load persisted tokens if they exist AND belong to `client_id`.
-    pub fn load(path: PathBuf, client_id: &str) -> Self {
+    pub fn load(path: PathBuf, client_id: &str, client_secret: Option<&str>) -> Self {
         let tokens = std::fs::read_to_string(&path)
             .ok()
             .and_then(|text| serde_json::from_str::<StoredTokens>(&text).ok())
             .filter(|t| t.client_id == client_id && !t.refresh_token.is_empty());
         Self {
             client_id: client_id.to_string(),
+            client_secret: client_secret.map(str::to_string),
             path,
             tokens,
         }
@@ -387,15 +428,16 @@ impl TokenManager {
         let Some(current) = &self.tokens else {
             return Err(AuthError::NotAuthenticated);
         };
-        let resp = http
-            .post(TOKEN_URL)
-            .form(&[
-                ("grant_type", "refresh_token"),
-                ("refresh_token", current.refresh_token.as_str()),
-                ("client_id", self.client_id.as_str()),
-            ])
-            .send()
-            .await?;
+        let mut request = http.post(TOKEN_URL);
+        let mut form: Vec<(&str, &str)> = vec![
+            ("grant_type", "refresh_token"),
+            ("refresh_token", current.refresh_token.as_str()),
+        ];
+        match &self.client_secret {
+            Some(secret) => request = request.basic_auth(&self.client_id, Some(secret)),
+            None => form.push(("client_id", self.client_id.as_str())),
+        }
+        let resp = request.form(&form).send().await?;
         match parse_token_response(&self.client_id, Some(&current.refresh_token), resp).await {
             Ok(tokens) => {
                 self.set(tokens)?;
@@ -425,6 +467,19 @@ mod tests {
     }
 
     #[test]
+    fn authorize_url_includes_pkce_only_without_a_secret() {
+        let with_pkce =
+            build_authorize_url("cid", "http://127.0.0.1:8888/callback", "st", Some("chal"));
+        assert!(with_pkce.contains("code_challenge_method=S256"));
+        assert!(with_pkce.contains("code_challenge=chal"));
+
+        let confidential = build_authorize_url("cid", "http://127.0.0.1:8888/callback", "st", None);
+        assert!(!confidential.contains("code_challenge"));
+        assert!(confidential.contains("client_id=cid"));
+        assert!(confidential.contains("response_type=code"));
+    }
+
+    #[test]
     fn verifier_length_is_within_rfc_bounds() {
         let v = random_urlsafe(64);
         assert!((43..=128).contains(&v.len()), "got {}", v.len());
@@ -448,8 +503,8 @@ mod tests {
         };
         std::fs::write(&path, serde_json::to_string(&tokens).unwrap()).unwrap();
 
-        assert!(TokenManager::load(path.clone(), "client-A").is_authenticated());
-        assert!(!TokenManager::load(path.clone(), "client-B").is_authenticated());
+        assert!(TokenManager::load(path.clone(), "client-A", None).is_authenticated());
+        assert!(!TokenManager::load(path.clone(), "client-B", None).is_authenticated());
         let _ = std::fs::remove_file(&path);
     }
 
@@ -460,7 +515,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("ps-test-perm-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("tokens.json");
-        let mut mgr = TokenManager::load(path.clone(), "client-A");
+        let mut mgr = TokenManager::load(path.clone(), "client-A", None);
         mgr.set(StoredTokens {
             client_id: "client-A".into(),
             access_token: "at".into(),

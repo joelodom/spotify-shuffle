@@ -47,6 +47,12 @@ pub struct SpotifyConfig {
     /// Client ID of the user's own Spotify app (developer.spotify.com
     /// dashboard). Not a secret.
     pub client_id: String,
+    /// OPTIONAL client secret. Empty (the default) = the recommended PKCE
+    /// public-client flow. When set, the classic confidential-client flow is
+    /// used instead (HTTP Basic on token requests). Persisted in plain text
+    /// in config.toml at the owner's request — it only guards this personal
+    /// Spotify app.
+    pub client_secret: String,
     /// Loopback port for the OAuth redirect. The registered redirect URI must
     /// be exactly `http://127.0.0.1:<port>/callback`.
     pub redirect_port: u16,
@@ -58,6 +64,7 @@ impl Default for SpotifyConfig {
     fn default() -> Self {
         Self {
             client_id: String::new(),
+            client_secret: String::new(),
             redirect_port: 8888,
             create_public: false,
         }
@@ -162,6 +169,14 @@ impl AppConfig {
 
     pub fn redirect_uri(&self) -> String {
         format!("http://127.0.0.1:{}/callback", self.spotify.redirect_port)
+    }
+}
+
+impl SpotifyConfig {
+    /// The optional client secret, normalized: empty/whitespace = None.
+    pub fn client_secret_opt(&self) -> Option<&str> {
+        let secret = self.client_secret.trim();
+        (!secret.is_empty()).then_some(secret)
     }
 }
 

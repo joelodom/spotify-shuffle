@@ -352,9 +352,10 @@ status checks, copy buttons, and links. In prose form:
    taken on your machine, change the port in Settings first and register the matching
    URI.
 4. Tick **Web API** under the APIs question and save.
-5. Copy the app's **Client ID** (Settings page of the dashboard app) into Playlist
-   Studio. There is no client secret — the app uses PKCE, which is the recommended flow
-   for native apps.
+5. Copy the app's **Client ID** (Settings page of the dashboard app) into Spotify
+   Shuffle. No client secret is needed — the app uses PKCE by default, the recommended
+   flow for native apps. Optionally, paste the dashboard app's client secret into
+   Settings to use the classic confidential-client flow instead.
 
 Your own account (the app owner) can use it immediately; if you ever want a second
 account, allowlist it under *User Management* (max 5 in development mode).
@@ -391,6 +392,8 @@ generation* round-trip (uses a trivial amount of quota).
 ```toml
 [spotify]
 client_id = ""          # from your dashboard app; not a secret
+client_secret = ""      # OPTIONAL — empty = PKCE (recommended); set to use the
+                        # classic confidential-client flow (stored in plain text)
 redirect_port = 8888    # must match the registered redirect URI
 create_public = false   # new playlists default to private
 
@@ -505,6 +508,13 @@ Every non-obvious choice made while building, with rationale:
 28. **Runtime assumptions are logged** to the Activity Log as they happen (e.g. "local
     files skipped", "showing first 200 tracks to the model", "falling back to legacy
     delete endpoint").
+29. **A client secret is supported as an optional authentication method** (owner
+    request): when set in Settings, the app switches from PKCE to the classic
+    confidential-client Authorization Code flow (HTTP Basic on token requests, no
+    PKCE challenge). The secret is persisted in plain text in `config.toml` — an
+    explicit owner decision, acceptable because it only guards this personal
+    development-mode Spotify app. Switching methods invalidates nothing proactively;
+    if a refresh fails after a switch, the app clears tokens and asks to reconnect.
 
 ## Testing
 

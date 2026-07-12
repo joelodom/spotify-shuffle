@@ -37,8 +37,8 @@ pub struct SpotifyService {
 }
 
 impl SpotifyService {
-    pub fn new(client_id: &str, tokens_path: PathBuf) -> Self {
-        let tokens = TokenManager::load(tokens_path, client_id);
+    pub fn new(client_id: &str, client_secret: Option<&str>, tokens_path: PathBuf) -> Self {
+        let tokens = TokenManager::load(tokens_path, client_id, client_secret);
         Self {
             client: SpotifyClient::new(tokens),
             policy: SafetyPolicy::new(),
@@ -48,8 +48,13 @@ impl SpotifyService {
 
     /// Swap credentials (Settings changed). The safety registry survives: a
     /// session playlist was still created by this session.
-    pub fn reconfigure(&mut self, client_id: &str, tokens_path: PathBuf) {
-        let tokens = TokenManager::load(tokens_path, client_id);
+    pub fn reconfigure(
+        &mut self,
+        client_id: &str,
+        client_secret: Option<&str>,
+        tokens_path: PathBuf,
+    ) {
+        let tokens = TokenManager::load(tokens_path, client_id, client_secret);
         self.client = SpotifyClient::new(tokens);
         self.me = None;
     }
@@ -58,15 +63,17 @@ impl SpotifyService {
         self.client.is_authenticated()
     }
 
-    /// Run the interactive browser PKCE flow and persist the tokens.
+    /// Run the interactive browser auth flow (PKCE, or confidential-client
+    /// when a secret is configured) and persist the tokens.
     pub async fn connect_interactive(
         &mut self,
         client_id: &str,
+        client_secret: Option<&str>,
         port: u16,
         notify: impl Fn(String),
     ) -> Result<UserProfile, ServiceError> {
         let http = self.client.http().clone();
-        let tokens = auth::run_pkce_flow(&http, client_id, port, notify).await?;
+        let tokens = auth::run_auth_flow(&http, client_id, client_secret, port, notify).await?;
         self.client
             .tokens_mut()
             .set(tokens)
