@@ -192,6 +192,11 @@ pub async fn run_auth_flow(
             "PKCE (no secret)"
         }
     ));
+    notify(format!(
+        "Redirect URI in use: {redirect_uri} — this EXACT string must be listed under \
+         Redirect URIs in your app's settings at developer.spotify.com/dashboard, or \
+         Spotify will show \"redirect_uri: Not matching configuration\""
+    ));
     let authorize_url = build_authorize_url(client_id, &redirect_uri, &state, challenge.as_deref());
 
     notify("Opening Spotify authorization in your browser…".to_string());

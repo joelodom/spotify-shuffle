@@ -121,9 +121,11 @@ impl StudioApp {
                 ui.add_space(4.0);
                 ui.label(
                     egui::RichText::new(
-                        "If the browser shows INVALID_CLIENT: the redirect URI in the \
-                         dashboard doesn't byte-match the one in step 1 (check the port), \
-                         or the Client ID is wrong.",
+                        "If the browser shows \"redirect_uri: Not matching configuration\" \
+                         or INVALID_CLIENT: the dashboard's Redirect URIs list doesn't \
+                         contain the exact string from step 1 — common when reusing an \
+                         older app that still has a \"localhost\" URI registered. Add the \
+                         127.0.0.1 URI in the dashboard, save, and press Connect again.",
                     )
                     .weak()
                     .small(),
