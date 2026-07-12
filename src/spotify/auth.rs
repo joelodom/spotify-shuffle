@@ -167,10 +167,22 @@ pub async fn run_auth_flow(
     let verifier = client_secret.is_none().then(|| random_urlsafe(64));
     let challenge = verifier.as_deref().map(code_challenge_s256);
 
-    // Bind BEFORE opening the browser so the redirect cannot race us.
-    let listener = TcpListener::bind(("127.0.0.1", port))
-        .await
-        .map_err(|_| AuthError::PortInUse(port))?;
+    // Bind BEFORE opening the browser so the redirect cannot race us. A few
+    // retries smooth over the window where a just-cancelled flow's listener
+    // is still closing.
+    let listener = {
+        let mut attempt = 0u8;
+        loop {
+            match TcpListener::bind(("127.0.0.1", port)).await {
+                Ok(listener) => break listener,
+                Err(_) if attempt < 3 => {
+                    attempt += 1;
+                    tokio::time::sleep(Duration::from_millis(250)).await;
+                }
+                Err(_) => return Err(AuthError::PortInUse(port)),
+            }
+        }
+    };
 
     notify(format!(
         "Using the {} flow",

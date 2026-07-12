@@ -93,7 +93,8 @@ impl StudioApp {
                      approval is required ONCE by OAuth even when a client secret is \
                      configured (a secret authenticates the app, not your account). \
                      Approve it and return here — afterwards the app connects silently \
-                     on every launch, until Spotify's ~6-month re-login.",
+                     on every launch, until Spotify's ~6-month re-login. Closed the tab \
+                     by mistake? Press Connect again — it restarts the flow.",
                 );
                 ui.add_space(4.0);
                 let can = client_id_set && !self.is_busy();

@@ -63,23 +63,15 @@ impl SpotifyService {
         self.client.is_authenticated()
     }
 
-    /// Run the interactive browser auth flow (PKCE, or confidential-client
-    /// when a secret is configured) and persist the tokens.
-    pub async fn connect_interactive(
-        &mut self,
-        client_id: &str,
-        client_secret: Option<&str>,
-        port: u16,
-        notify: impl Fn(String),
-    ) -> Result<UserProfile, ServiceError> {
-        let http = self.client.http().clone();
-        let tokens = auth::run_auth_flow(&http, client_id, client_secret, port, notify).await?;
+    /// Adopt tokens produced by [`auth::run_auth_flow`] (which the worker
+    /// runs as a cancellable background task) and persist them.
+    pub fn adopt_tokens(&mut self, tokens: auth::StoredTokens) -> Result<(), ServiceError> {
         self.client
             .tokens_mut()
             .set(tokens)
             .map_err(AuthError::Io)?;
         self.me = None;
-        self.ensure_me().await
+        Ok(())
     }
 
     pub fn disconnect(&mut self) {

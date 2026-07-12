@@ -6,12 +6,14 @@
 use std::sync::mpsc;
 
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
+use tokio::task::{JoinError, JoinHandle};
 
 use crate::ai::{AiProvider, AiRequest, build_provider};
 use crate::config::{AppConfig, tokens_path};
 use crate::messages::{AuthInfo, Command, Event, LogLevel, PlaylistRow, TrackRow};
 use crate::ops::{self, OpUpdate};
 use crate::safety::PlaylistId;
+use crate::spotify::auth::{self, AuthError, StoredTokens};
 use crate::spotify::models::TrackInfo;
 use crate::spotify::service::SpotifyService;
 use crate::util::format_duration_ms;
@@ -61,6 +63,10 @@ struct Worker {
     ai_error: Option<String>,
     me_label: Option<String>,
     events: EventSender,
+    /// A browser authorization in flight, running as its own task so the
+    /// worker stays responsive (and the flow can be cancelled/restarted by
+    /// simply pressing Connect again).
+    pending_auth: Option<JoinHandle<Result<StoredTokens, AuthError>>>,
 }
 
 async fn worker_loop(cfg: AppConfig, mut rx: UnboundedReceiver<Command>, events: EventSender) {
@@ -75,29 +81,41 @@ async fn worker_loop(cfg: AppConfig, mut rx: UnboundedReceiver<Command>, events:
         worker.refresh_playlists().await;
         worker.done();
         if !worker.svc.is_authenticated() {
-            // The saved refresh token was rejected (e.g. Spotify's 6-month
-            // authorization expiry) and has been cleared — go straight back
-            // through the browser approval rather than sitting disconnected.
             worker.events.log(
                 LogLevel::Warn,
-                "Saved login has expired — starting browser re-authorization…",
+                "Saved login has expired (Spotify re-authorizes every ~6 months) — press \
+                 Connect to sign in again",
             );
-            worker.connect().await;
         }
     } else if !worker.cfg.spotify.client_id.trim().is_empty() {
-        // Credentials are configured but no login is saved yet: start the
-        // one-time browser authorization automatically. (OAuth requires one
-        // browser approval for user-data access even with a client secret;
-        // every launch after that connects silently.)
         worker.events.log(
             LogLevel::Info,
-            "Spotify credentials configured but no saved login — opening the one-time \
-             browser authorization…",
+            "Spotify credentials configured but no saved login — press Connect for the \
+             one-time browser authorization",
         );
-        worker.connect().await;
     }
-    while let Some(cmd) = rx.recv().await {
-        worker.handle(cmd).await;
+    loop {
+        // While an authorization is pending, listen for BOTH its completion
+        // and new commands — closing the browser tab never wedges the app.
+        if let Some(mut handle) = worker.pending_auth.take() {
+            tokio::select! {
+                cmd = rx.recv() => {
+                    worker.pending_auth = Some(handle);
+                    match cmd {
+                        Some(cmd) => worker.handle(cmd).await,
+                        None => break,
+                    }
+                }
+                result = &mut handle => {
+                    worker.finish_connect(result).await;
+                }
+            }
+        } else {
+            match rx.recv().await {
+                Some(cmd) => worker.handle(cmd).await,
+                None => break,
+            }
+        }
     }
 }
 
@@ -122,6 +140,7 @@ impl Worker {
             ai_error,
             me_label: None,
             events,
+            pending_auth: None,
         }
     }
 
@@ -171,8 +190,11 @@ impl Worker {
 
     async fn handle(&mut self, cmd: Command) {
         match cmd {
-            Command::Connect => self.connect().await,
+            Command::Connect => self.start_connect(),
             Command::Disconnect => {
+                if let Some(previous) = self.pending_auth.take() {
+                    previous.abort();
+                }
                 self.svc.disconnect();
                 self.me_label = None;
                 self.events
@@ -713,7 +735,11 @@ impl Worker {
         }
     }
 
-    async fn connect(&mut self) {
+    /// Launch the browser authorization as a background task. The worker
+    /// keeps handling commands while it waits; pressing Connect again
+    /// cancels the pending flow and starts a fresh one (so a closed browser
+    /// tab is never a dead end).
+    fn start_connect(&mut self) {
         if self.cfg.spotify.client_id.is_empty() {
             self.events.log(
                 LogLevel::Error,
@@ -722,34 +748,66 @@ impl Worker {
             );
             return;
         }
-        self.busy("Connecting to Spotify");
+        if let Some(previous) = self.pending_auth.take() {
+            previous.abort();
+            self.events.log(
+                LogLevel::Info,
+                "Restarting the Spotify authorization (previous attempt cancelled)…",
+            );
+        }
         let events = self.events.clone();
+        let http = self.svc.reads().http().clone();
         let client_id = self.cfg.spotify.client_id.clone();
         let client_secret = self.cfg.spotify.client_secret_opt().map(str::to_string);
         let port = self.cfg.spotify.redirect_port;
-        let result = self
-            .svc
-            .connect_interactive(&client_id, client_secret.as_deref(), port, move |line| {
-                events.log(LogLevel::Info, line);
-            })
-            .await;
+        self.pending_auth = Some(tokio::spawn(async move {
+            auth::run_auth_flow(
+                &http,
+                &client_id,
+                client_secret.as_deref(),
+                port,
+                move |line| {
+                    events.log(LogLevel::Info, line);
+                },
+            )
+            .await
+        }));
+    }
+
+    /// The background authorization finished (or was aborted).
+    async fn finish_connect(&mut self, result: Result<Result<StoredTokens, AuthError>, JoinError>) {
         match result {
-            Ok(user) => {
-                self.me_label = Some(user.label().to_string());
-                self.events.log(
-                    LogLevel::Success,
-                    format!("Connected to Spotify as {}", user.label()),
-                );
-                self.emit_auth();
-                self.refresh_playlists().await;
+            Err(join_error) => {
+                if !join_error.is_cancelled() {
+                    self.events.log(
+                        LogLevel::Error,
+                        format!("Spotify authorization task failed: {join_error}"),
+                    );
+                }
             }
-            Err(e) => {
+            Ok(Err(e)) => {
                 self.events
                     .log(LogLevel::Error, format!("Spotify connection failed: {e}"));
                 self.emit_auth();
             }
+            Ok(Ok(tokens)) => {
+                if let Err(e) = self.svc.adopt_tokens(tokens) {
+                    self.events
+                        .log(LogLevel::Error, format!("Could not store tokens: {e}"));
+                    return;
+                }
+                self.busy("Loading playlists");
+                self.refresh_playlists().await;
+                self.done();
+                self.events.log(
+                    LogLevel::Success,
+                    format!(
+                        "Connected to Spotify as {}",
+                        self.me_label.as_deref().unwrap_or("(unknown)")
+                    ),
+                );
+            }
         }
-        self.done();
     }
 
     async fn refresh_playlists(&mut self) {

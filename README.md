@@ -515,13 +515,18 @@ Every non-obvious choice made while building, with rationale:
     explicit owner decision, acceptable because it only guards this personal
     development-mode Spotify app. Switching methods invalidates nothing proactively;
     if a refresh fails after a switch, the app clears tokens and asks to reconnect.
-30. **Startup connects automatically.** With a saved login, the app connects
-    silently on launch. With credentials configured but no saved login, it opens
-    the browser authorization by itself. Note what a client secret can and cannot
+30. **Startup connects silently when it can; the browser never opens uninvited.**
+    With a saved login, the app connects hands-free on launch. Without one it
+    logs a hint and waits for you to press Connect (an earlier auto-open-on-start
+    behavior was reverted as intrusive). Note what a client secret can and cannot
     do: it authenticates the *app*, not your account — OAuth requires one browser
     approval for user-data access regardless of flow (the secret-only "client
     credentials" grant carries no user and cannot read playlists), so the one-time
-    consent cannot be skipped. Every launch after it is hands-free.
+    consent cannot be skipped.
+31. **The browser authorization runs as a cancellable background task.** The
+    worker keeps processing while it waits for the redirect, and pressing Connect
+    again aborts the pending attempt and opens a fresh tab — closing the browser
+    tab can never wedge the app.
 
 ## Testing
 
